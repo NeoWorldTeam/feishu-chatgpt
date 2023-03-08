@@ -1,3 +1,5 @@
+package handlers
+
 // handlerType := judgeChatType(event)
 // 	if handlerType == "otherChat" {
 // 		fmt.Println("unknown chat type")
