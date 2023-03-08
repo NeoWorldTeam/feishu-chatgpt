@@ -3,9 +3,10 @@ package handlers
 import (
 	"context"
 	"fmt"
-	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"start-feishubot/services"
 	"start-feishubot/utils"
+
+	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 )
 
 type MsgInfo struct {
@@ -130,8 +131,9 @@ func (*PicAction) Execute(a *ActionInfo) bool {
 	// 生成图片
 	mode := a.handler.sessionCache.GetMode(*a.info.sessionId)
 	if mode == services.ModePicCreate {
-		bs64, err := a.handler.gpt.GenerateOneImage(a.info.qParsed,
-			"256x256")
+		// bs64, err := a.handler.gpt.GenerateOneImage(a.info.qParsed,
+		// 	"256x256")
+		bs64, err := services.TrySD(a.info.qParsed)
 		if err != nil {
 			replyMsg(*a.ctx, fmt.Sprintf(
 				"🤖️：图片生成失败，请稍后再试～\n错误信息: %v", err), a.info.msgId)
