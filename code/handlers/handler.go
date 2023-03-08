@@ -2,17 +2,29 @@ package handlers
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"start-feishubot/initialization"
 	"start-feishubot/services"
 	"strings"
 
 	larkcard "github.com/larksuite/oapi-sdk-go/v3/card"
-	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 )
+
+type PostMessage struct {
+	Title   string `json:"title"`
+	Content [][]struct {
+		Tag      string `json:"tag"`
+		Text     string `json:"text,omitempty"`
+		Href     string `json:"href,omitempty"`
+		UserID   string `json:"user_id,omitempty"`
+		UserName string `json:"user_name,omitempty"`
+	} `json:"content"`
+}
 
 // 责任链
 func chain(data *ActionInfo, actions ...Action) bool {
@@ -73,21 +85,63 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 		fmt.Println("unknown chat type")
 		return nil
 	}
+	imgbs64 := ""
+	var contentMap map[string]interface{}
 	msgType := judgeMsgType(event)
+	fmt.Println("msg type:", msgType, *event.Event.Message.Content)
+	isImage := false
+	prompt := ""
 	if msgType != "text" {
-		fmt.Println("msg type:", msgType, *event.Event.Message.Content)
+
 		if msgType == "image" {
 			image := &larkim.CreateImageRespData{}
 			json.Unmarshal([]byte(*event.Event.Message.Content), image)
 			req := larkim.NewGetImageReqBuilder().
 				ImageKey(*image.ImageKey).
 				Build()
-			resp, err := initialization.GetLarkClient().Im.Image.Get(ctx, req)
+			resp, _ := initialization.GetLarkClient().Im.Image.Get(ctx, req)
 			// resp.WriteFile(*image.ImageKey)
-			// fmt.Println("base64 image str:", base64.RawStdEncoding.EncodeToString(resp.RawBody))
-			fmt.Println("get image by key", *image.ImageKey, larkcore.Prettify(resp), err)
-			return nil
+			imgbs64 = base64.RawStdEncoding.EncodeToString(resp.RawBody)
+			// fmt.Println("get image by key", *image.ImageKey, err)
+			isImage = true
+			// return nil
+		} else if msgType == "post" {
+			json.Unmarshal([]byte(*event.Event.Message.Content), &contentMap)
+			if contentMap["content"] != nil {
+				fmt.Println("post content:", contentMap["content"])
+				v := reflect.ValueOf(contentMap["content"])
+				if v.Kind() == reflect.Ptr {
+					v = v.Elem()
+				}
+				if v.Kind() != reflect.Slice {
+					panic(fmt.Errorf("forEachValue: expected slice type, found %q", v.Kind().String()))
+				}
+
+				for i := 0; i < v.Len(); i++ {
+					val := v.Index(i).Interface()
+					for i, item := range val.([]interface{}) {
+						itemmap := item.(map[string]interface{})
+						if itemmap["tag"] == "img" {
+
+							imgKey := itemmap["image_key"].(string)
+							fmt.Println("image", i, imgKey)
+							req := larkim.NewGetImageReqBuilder().
+								ImageKey(imgKey).
+								Build()
+							resp, _ := initialization.GetLarkClient().Im.Image.Get(ctx, req)
+							// resp.WriteFile(imgKey)
+							imgbs64 = base64.RawStdEncoding.EncodeToString(resp.RawBody)
+							// fmt.Println("get image by key", imgKey, larkcore.Prettify(resp), err)
+							isImage = true
+						}
+						if itemmap["tag"] == "text" {
+							prompt += itemmap["text"].(string)
+						}
+					}
+				}
+			}
 		}
+
 	}
 
 	content := event.Event.Message.Content
@@ -100,14 +154,35 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 	if sessionId == nil || *sessionId == "" {
 		sessionId = msgId
 	}
-	msgInfo := MsgInfo{
-		handlerType: handlerType,
-		msgType:     msgType,
-		msgId:       msgId,
-		chatId:      chatId,
-		qParsed:     strings.Trim(parseContent(*content), " "),
-		sessionId:   sessionId,
-		mention:     mention,
+	var msgInfo MsgInfo
+
+	if isImage {
+		if len(prompt) == 0 {
+			prompt = "add a cat head"
+		}
+		msgInfo = MsgInfo{
+			handlerType: handlerType,
+			msgType:     msgType,
+			msgId:       msgId,
+			chatId:      chatId,
+			qParsed:     prompt,
+			sessionId:   sessionId,
+			mention:     mention,
+			isImage:     isImage,
+			imgbs64:     imgbs64,
+		}
+	} else {
+		msgInfo = MsgInfo{
+			handlerType: handlerType,
+			msgType:     msgType,
+			msgId:       msgId,
+			chatId:      chatId,
+			qParsed:     strings.Trim(parseContent(*content), " "),
+			sessionId:   sessionId,
+			mention:     mention,
+			isImage:     isImage,
+			imgbs64:     imgbs64,
+		}
 	}
 	//责任链重构示例
 	data := &ActionInfo{

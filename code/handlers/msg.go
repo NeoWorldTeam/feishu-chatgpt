@@ -250,6 +250,7 @@ func uploadImage(base64Str string) (*string, error) {
 		fmt.Println(err)
 		return nil, err
 	}
+	fmt.Println("now upload img")
 	client := initialization.GetLarkClient()
 	resp, err := client.Im.Image.Create(context.Background(),
 		larkim.NewCreateImageReqBuilder().
@@ -261,7 +262,7 @@ func uploadImage(base64Str string) (*string, error) {
 
 	// 处理错误
 	if err != nil {
-		fmt.Println(err)
+		fmt.Println("upload img failed", err)
 		return nil, err
 	}
 
@@ -274,7 +275,7 @@ func uploadImage(base64Str string) (*string, error) {
 }
 func replyImage(ctx context.Context, ImageKey *string,
 	msgId *string) error {
-	fmt.Println("sendMsg", ImageKey, msgId)
+	fmt.Println("sendIMGMsg", ImageKey, msgId)
 
 	msgImage := larkim.MessageImage{ImageKey: *ImageKey}
 	content, err := msgImage.String()
@@ -309,6 +310,7 @@ func replyImage(ctx context.Context, ImageKey *string,
 }
 
 func replayImageByBase64(ctx context.Context, base64Str string, msgId *string) error {
+	fmt.Println("base64str:", len(base64Str))
 	imageKey, err := uploadImage(base64Str)
 	if err != nil {
 		return err

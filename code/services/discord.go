@@ -10,7 +10,7 @@ var BotId string
 var goBot *discordgo.Session
 
 func TryDiscord() {
-	goBot, err := discordgo.New("Bot " + "MTA3MDIyMjUyODU0ODcwNDM2Ng.GHFMCJ.NwBMZKquqii5p9JQdPNBpIWN10SRNcE294uvIQ")
+	goBot, err := discordgo.New("Bot " + "MTA3MDIyMjUyODU0ODcwNDM2Ng.Gc5RHY.HLBTUOgxD0QTIJ7r7_YuAC7X6oZuc0Mc0psjJ8")
 
 	if err != nil {
 		fmt.Println(err.Error())

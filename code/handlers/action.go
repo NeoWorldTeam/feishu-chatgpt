@@ -17,6 +17,8 @@ type MsgInfo struct {
 	qParsed     string
 	sessionId   *string
 	mention     []*larkim.MentionEvent
+	isImage     bool
+	imgbs64     string
 }
 type ActionInfo struct {
 	handler *MessageHandler
@@ -130,10 +132,17 @@ func (*PicAction) Execute(a *ActionInfo) bool {
 
 	// 生成图片
 	mode := a.handler.sessionCache.GetMode(*a.info.sessionId)
-	if mode == services.ModePicCreate {
+	if mode == services.ModePicCreate || a.info.isImage {
 		// bs64, err := a.handler.gpt.GenerateOneImage(a.info.qParsed,
 		// 	"256x256")
-		bs64, err := services.TrySD(a.info.qParsed)
+		var bs64 string
+		var err error
+		if a.info.isImage {
+			bs64, err = services.TrySDI2I(a.info.imgbs64, a.info.qParsed)
+		} else if a.info.msgType == "text" {
+			bs64, err = services.TrySDT2I(a.info.qParsed)
+		}
+
 		if err != nil {
 			replyMsg(*a.ctx, fmt.Sprintf(
 				"🤖️：图片生成失败，请稍后再试～\n错误信息: %v", err), a.info.msgId)
