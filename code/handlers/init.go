@@ -62,7 +62,7 @@ func judgeCardType(cardAction *larkcard.CardAction) HandlerType {
 
 func judgeChatType(event *larkim.P2MessageReceiveV1) HandlerType {
 	chatType := event.Event.Message.ChatType
-	fmt.Printf("chatType: %v", *chatType)
+	fmt.Printf("chatType: %v \n", *chatType)
 	if *chatType == "group" {
 		return GroupHandler
 	}
@@ -73,9 +73,9 @@ func judgeChatType(event *larkim.P2MessageReceiveV1) HandlerType {
 }
 
 func judgeMsgType(event *larkim.P2MessageReceiveV1) string {
-	msgType := event.Event.Message.MessageType
-	if *msgType == "text" {
-		return "text"
-	}
-	return ""
+	return *event.Event.Message.MessageType
+	// if *msgType == "text" {
+	// 	return "text"
+	// }
+	// return ""
 }
