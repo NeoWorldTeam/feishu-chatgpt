@@ -9,11 +9,12 @@ import (
 	"strings"
 
 	larkcard "github.com/larksuite/oapi-sdk-go/v3/card"
+	larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 )
 
-//责任链
+// 责任链
 func chain(data *ActionInfo, actions ...Action) bool {
 	for _, v := range actions {
 		if !v.Execute(data) {
@@ -74,8 +75,19 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 	}
 	msgType := judgeMsgType(event)
 	if msgType != "text" {
-		fmt.Println("unknown msg type")
-		return nil
+		fmt.Println("msg type:", msgType, *event.Event.Message.Content)
+		if msgType == "image" {
+			image := &larkim.CreateImageRespData{}
+			json.Unmarshal([]byte(*event.Event.Message.Content), image)
+			req := larkim.NewGetImageReqBuilder().
+				ImageKey(*image.ImageKey).
+				Build()
+			resp, err := initialization.GetLarkClient().Im.Image.Get(ctx, req)
+			// resp.WriteFile(*image.ImageKey)
+			// fmt.Println("base64 image str:", base64.RawStdEncoding.EncodeToString(resp.RawBody))
+			fmt.Println("get image by key", *image.ImageKey, larkcore.Prettify(resp), err)
+			return nil
+		}
 	}
 
 	content := event.Event.Message.Content
