@@ -5,11 +5,16 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"image/png"
 	"start-feishubot/initialization"
 
 	"github.com/google/uuid"
 	larkcard "github.com/larksuite/oapi-sdk-go/v3/card"
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
+
+	"image"
+
+	"github.com/fogleman/gg"
 )
 
 type CardKind string
@@ -210,6 +215,17 @@ func withDoubleCheckBtn(sessionID *string) larkcard.MessageCardElement {
 	return actions
 }
 
+func withImageDiv(imageKey string) larkcard.MessageCardElement {
+	imageElement := larkcard.NewMessageCardImage().
+		ImgKey(imageKey).
+		Alt(larkcard.NewMessageCardPlainText().Content("").
+			Build()).
+		Preview(true).
+		Mode(larkcard.MessageCardImageModelFitHorizontal).
+		Build()
+	return imageElement
+}
+
 func replyMsg(ctx context.Context, msg string, msgId *string) error {
 	fmt.Println("sendMsg", msg, msgId)
 	msg, i := processMessage(msg)
@@ -273,6 +289,54 @@ func uploadImage(base64Str string) (*string, error) {
 	}
 	return resp.Data.ImageKey, nil
 }
+
+func addLabel(img []byte, label string) []byte {
+	image, _, _ := image.Decode(bytes.NewReader(img))
+	dc := gg.NewContextForImage(image)
+	dc.SetRGB(0, 0, 0)
+
+	// dc.SetFontFace(basicfont.Face7x13)
+	dc.LoadFontFace("./HuaGuangGangTieZhiHei-KeBianTi-2.ttf", 30)
+	dc.DrawStringWrapped(label, 30, 30, 0.5, 0.5, 512, 1, gg.AlignLeft)
+	buff := new(bytes.Buffer)
+
+	// encode image to buffer
+	_ = png.Encode(buff, dc.Image())
+	return buff.Bytes()
+
+}
+
+func uploadImageWithLabel(base64Str, label string) (*string, error) {
+	imageBytes, err := base64.StdEncoding.DecodeString(base64Str)
+	imageBytes = addLabel(imageBytes, label)
+	if err != nil {
+		fmt.Println(err)
+		return nil, err
+	}
+	fmt.Println("now upload img with label")
+	client := initialization.GetLarkClient()
+	resp, err := client.Im.Image.Create(context.Background(),
+		larkim.NewCreateImageReqBuilder().
+			Body(larkim.NewCreateImageReqBodyBuilder().
+				ImageType(larkim.ImageTypeMessage).
+				Image(bytes.NewReader(imageBytes)).
+				Build()).
+			Build())
+
+	// 处理错误
+	if err != nil {
+		fmt.Println("upload img failed", err)
+		return nil, err
+	}
+
+	// 服务端错误处理
+	if !resp.Success() {
+		fmt.Println(resp.Code, resp.Msg, resp.RequestId())
+		return nil, err
+	}
+	return resp.Data.ImageKey, nil
+}
+
 func replyImage(ctx context.Context, ImageKey *string,
 	msgId *string) error {
 	fmt.Println("sendIMGMsg", ImageKey, msgId)
@@ -322,6 +386,19 @@ func replayImageByBase64(ctx context.Context, base64Str string, msgId *string) e
 	return nil
 }
 
+func replayImageByBase64WithLabel(ctx context.Context, base64Str, label string, msgId *string) error {
+	fmt.Println("base64str:", len(base64Str))
+	imageKey, err := uploadImageWithLabel(base64Str, label)
+	if err != nil {
+		return err
+	}
+	err = replyImage(ctx, imageKey, msgId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func sendMsg(ctx context.Context, msg string, chatId *string) error {
 	//fmt.Println("sendMsg", msg, chatId)
 	msg, i := processMessage(msg)
@@ -357,6 +434,57 @@ func sendMsg(ctx context.Context, msg string, chatId *string) error {
 	}
 	return nil
 }
+
+func sendPost(ctx context.Context, msg, imagekey string, chatId *string) error {
+	//fmt.Println("sendMsg", msg, chatId)
+
+	client := initialization.GetLarkClient()
+
+	postTemplate := `{"title":"一千零一夜","content":[[{"tag":"img","image_key":"%s","width":512,"height":512}]]}`
+
+	post := fmt.Sprintf(postTemplate, imagekey)
+	fmt.Println(post)
+
+	//fmt.Println("content", content)
+
+	resp, err := client.Im.Message.Create(ctx, larkim.NewCreateMessageReqBuilder().
+		ReceiveIdType(larkim.ReceiveIdTypeChatId).
+		Body(larkim.NewCreateMessageReqBodyBuilder().
+			MsgType(larkim.MsgTypePost).
+			ReceiveId(*chatId).
+			Content(post).
+			Build()).
+		Build())
+
+	// 处理错误
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+
+	// 服务端错误处理
+	if !resp.Success() {
+		fmt.Println(resp.Code, resp.Msg, resp.RequestId())
+		return err
+	}
+	return nil
+}
+
+func sendLifeStreamCard(ctx context.Context, msg string,
+	imageKey, msgId *string) {
+	newCard, _ := newSendCard(
+		withHeader("一千零一夜", larkcard.TemplateBlue),
+		withImageDiv(*imageKey),
+		withMainMd(msg),
+		// withNote("有酒乐逍遥，无酒我亦颠")
+	)
+	replyCard(
+		ctx,
+		msgId,
+		newCard,
+	)
+}
+
 func sendClearCacheCheckCard(ctx context.Context,
 	sessionId *string, msgId *string) {
 	newCard, _ := newSendCard(

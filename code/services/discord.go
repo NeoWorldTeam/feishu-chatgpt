@@ -9,8 +9,8 @@ import (
 var BotId string
 var goBot *discordgo.Session
 
-func TryDiscord() {
-	goBot, err := discordgo.New("Bot " + "MTA3MDIyMjUyODU0ODcwNDM2Ng.Gc5RHY.HLBTUOgxD0QTIJ7r7_YuAC7X6oZuc0Mc0psjJ8")
+func TryDiscord(token string) {
+	goBot, err := discordgo.New("Bot " + token)
 
 	if err != nil {
 		fmt.Println(err.Error())

@@ -8,9 +8,10 @@ import (
 )
 
 const (
-	SDT2IBASEURL = "http://192.168.50.107:7860/sdapi/v1/txt2img"
-	SDI2IBASEURL = "http://192.168.50.107:7860/sdapi/v1/img2img"
-	sdengine     = "sd"
+	SDT2IBASEURL  = "http://192.168.50.107:7860/sdapi/v1/txt2img"
+	SDI2IBASEURL  = "http://192.168.50.107:7860/sdapi/v1/img2img"
+	SDCLIPBASEURL = "http://192.168.50.107:7860/sdapi/v1/interrogate"
+	sdengine      = "sd"
 )
 
 type SDImageGenerationResponseBody struct {
@@ -22,16 +23,27 @@ type SDImageGenerationResponseBody struct {
 }
 
 type SDT2ImageGenerationRequestBody struct {
-	Prompt string `json:"prompt"`
-	Steps  int    `json:"steps"`
+	Prompt         string `json:"prompt"`
+	Steps          int    `json:"steps"`
+	NegativePrompt string `json:"negative_prompt"`
+	SamplerIndex   string `json:"sampler_index"`
 }
 
 type SDI2ImageGenerationRequestBody struct {
-	InitImages      []string `json:"init_images"`
-	Prompt          string   `json:"prompt"`
-	Steps           int      `json:"steps"`
-	SeedResizeFromH int      `json:"seed_resize_from_h"`
-	SeedResizeFromW int      `json:"seed_resize_from_w"`
+	InitImages     []string `json:"init_images"`
+	Prompt         string   `json:"prompt"`
+	Steps          int      `json:"steps"`
+	NegativePrompt string   `json:"negative_prompt"`
+	SamplerIndex   string   `json:"sampler_index"`
+}
+
+type SDPNGINFORequestBody struct {
+	Image string `json:"image"`
+	Model string `json:"model"`
+}
+
+type SDClipINFOResptBody struct {
+	Caption string `json:"caption"`
 }
 
 func TrySDT2I(prompt string) (string, error) {
@@ -43,7 +55,7 @@ func TrySDT2I(prompt string) (string, error) {
 	r := &SDImageGenerationResponseBody{}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(SDT2ImageGenerationRequestBody{Prompt: prompt, Steps: 5}).
+		SetBody(SDT2ImageGenerationRequestBody{Prompt: prompt + "masterpiece, best quality, ultra-detailed", NegativePrompt: "EasyNegative", SamplerIndex: "DDIM", Steps: 50}).
 		SetResult(r).
 		Post(SDT2IBASEURL)
 	if err != nil {
@@ -52,6 +64,7 @@ func TrySDT2I(prompt string) (string, error) {
 		if len(r.Images) == 0 {
 			return "", errors.New("sd resp: " + resp.String())
 		}
+		fmt.Println("bs64 str", r.Images[0][0:20])
 		return r.Images[0], nil
 	}
 }
@@ -66,7 +79,7 @@ func TrySDI2I(bs64, prompt string) (string, error) {
 	r := &SDImageGenerationResponseBody{}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody(SDI2ImageGenerationRequestBody{InitImages: imgs, Prompt: prompt, Steps: 20, SeedResizeFromH: 512, SeedResizeFromW: 512}).
+		SetBody(SDI2ImageGenerationRequestBody{InitImages: imgs, Prompt: prompt + "masterpiece, best quality, ultra-detailed", NegativePrompt: "EasyNegative", SamplerIndex: "DDIM", Steps: 50}).
 		SetResult(r).
 		Post(SDI2IBASEURL)
 	if err != nil {
@@ -75,7 +88,32 @@ func TrySDI2I(bs64, prompt string) (string, error) {
 		if len(r.Images) == 0 {
 			return "", errors.New("sd resp: " + resp.String())
 		}
+		fmt.Println("bs64 str", r.Images[0][0:20])
 		return r.Images[0], nil
+	}
+
+}
+
+func TryCLIPINFO(bs64 string) (string, error) {
+	// Create a Resty Client
+	client := resty.New()
+	// POST JSON string
+	// No need to set content type, if you have client level setting
+	r := &SDClipINFOResptBody{}
+	resp, err := client.R().
+		SetHeader("Content-Type", "application/json").
+		SetBody(SDPNGINFORequestBody{Image: bs64, Model: "clip"}).
+		SetResult(r).
+		Post(SDCLIPBASEURL)
+	if err != nil {
+		return resp.String(), err
+	} else {
+		if r.Caption != "" {
+			return r.Caption, nil
+		} else {
+			return resp.String(), err
+		}
+
 	}
 
 }

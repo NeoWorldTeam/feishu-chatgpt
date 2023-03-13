@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	larkcard "github.com/larksuite/oapi-sdk-go/v3/card"
+	// larkcore "github.com/larksuite/oapi-sdk-go/v3/core"
 
 	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 )
@@ -81,6 +82,16 @@ func CommonProcessClearCache(cardMsg CardMsg, session services.SessionServiceCac
 
 func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2MessageReceiveV1) error {
 	handlerType := judgeChatType(event)
+	fmt.Println("openID:", *event.Event.Sender.SenderId.OpenId)
+	name := "默认名字"
+	req := larkim.NewGetChatMembersReqBuilder().ChatId(*event.Event.Message.ChatId).Build()
+	resp, _ := initialization.GetLarkClient().Im.ChatMembers.Get(ctx, req)
+	for _, item := range resp.Data.Items {
+		if *item.MemberId == *event.Event.Sender.SenderId.OpenId {
+			name = *item.Name
+		}
+	}
+	// fmt.Println("chat members:", larkcore.Prettify(resp))
 	if handlerType == "otherChat" {
 		fmt.Println("unknown chat type")
 		return nil
@@ -91,6 +102,8 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 	fmt.Println("msg type:", msgType, *event.Event.Message.Content)
 	isImage := false
 	prompt := ""
+	isLifeStreaming := false
+	lifeStreamingType := "story"
 	if msgType != "text" {
 
 		if msgType == "image" {
@@ -101,9 +114,10 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 				Build()
 			resp, _ := initialization.GetLarkClient().Im.Image.Get(ctx, req)
 			// resp.WriteFile(*image.ImageKey)
-			imgbs64 = base64.RawStdEncoding.EncodeToString(resp.RawBody)
+			imgbs64 = "data:image/png;base64," + base64.StdEncoding.EncodeToString(resp.RawBody)
 			// fmt.Println("get image by key", *image.ImageKey, err)
 			isImage = true
+
 			// return nil
 		} else if msgType == "post" {
 			json.Unmarshal([]byte(*event.Event.Message.Content), &contentMap)
@@ -130,15 +144,38 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 								Build()
 							resp, _ := initialization.GetLarkClient().Im.Image.Get(ctx, req)
 							// resp.WriteFile(imgKey)
-							imgbs64 = base64.RawStdEncoding.EncodeToString(resp.RawBody)
+							imgbs64 = "data:image/png;base64," + base64.StdEncoding.EncodeToString(resp.RawBody)
 							// fmt.Println("get image by key", imgKey, larkcore.Prettify(resp), err)
 							isImage = true
 						}
 						if itemmap["tag"] == "text" {
-							prompt += itemmap["text"].(string)
+							text := strings.TrimSpace(itemmap["text"].(string))
+							if strings.Contains(text, "故事模式") {
+								isLifeStreaming = true
+								lifeStreamingType = "story"
+								prompt += strings.Replace(text, "故事模式", "", 0)
+
+							} else if strings.Contains(text, "金句模式") {
+								isLifeStreaming = true
+								prompt += strings.Replace(text, "金句模式", "", 0)
+								lifeStreamingType = "golden"
+							} else {
+								prompt += text
+							}
+
 						}
 					}
 				}
+			}
+			if contentMap["title"] != nil {
+				title := contentMap["title"]
+				fmt.Println("title:", title)
+				// title := strings.TrimSpace(contentMap["title"].(string))
+				if strings.HasSuffix(title.(string), "开始你的表演") || strings.HasSuffix(title.(string), "ction") {
+					fmt.Println("title:", title)
+					isLifeStreaming = true
+				}
+
 			}
 		}
 
@@ -156,32 +193,35 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 	}
 	var msgInfo MsgInfo
 
-	if isImage {
-		if len(prompt) == 0 {
-			prompt = "add a cat head"
-		}
+	if isImage || isLifeStreaming {
 		msgInfo = MsgInfo{
-			handlerType: handlerType,
-			msgType:     msgType,
-			msgId:       msgId,
-			chatId:      chatId,
-			qParsed:     prompt,
-			sessionId:   sessionId,
-			mention:     mention,
-			isImage:     isImage,
-			imgbs64:     imgbs64,
+			handlerType:       handlerType,
+			msgType:           msgType,
+			msgId:             msgId,
+			chatId:            chatId,
+			qParsed:           prompt,
+			sessionId:         sessionId,
+			mention:           mention,
+			isImage:           isImage,
+			imgbs64:           imgbs64,
+			isLifeStreaming:   isLifeStreaming,
+			lifeStreamingType: lifeStreamingType,
+			name:              name,
 		}
 	} else {
 		msgInfo = MsgInfo{
-			handlerType: handlerType,
-			msgType:     msgType,
-			msgId:       msgId,
-			chatId:      chatId,
-			qParsed:     strings.Trim(parseContent(*content), " "),
-			sessionId:   sessionId,
-			mention:     mention,
-			isImage:     isImage,
-			imgbs64:     imgbs64,
+			handlerType:       handlerType,
+			msgType:           msgType,
+			msgId:             msgId,
+			chatId:            chatId,
+			qParsed:           strings.Trim(parseContent(*content), " "),
+			sessionId:         sessionId,
+			mention:           mention,
+			isImage:           isImage,
+			imgbs64:           imgbs64,
+			isLifeStreaming:   isLifeStreaming,
+			lifeStreamingType: lifeStreamingType,
+			name:              name,
 		}
 	}
 	//责任链重构示例
@@ -191,14 +231,15 @@ func (m MessageHandler) msgReceivedHandler(ctx context.Context, event *larkim.P2
 		info:    &msgInfo,
 	}
 	actions := []Action{
-		&ProcessedUnique{}, //避免重复处理
-		&ProcessMention{},  //判断机器人是否应该被调用
-		&EmptyAction{},     //空消息处理
-		&ClearAction{},     //清除消息处理
-		&HelpAction{},      //帮助处理
-		&RolePlayAction{},  //角色扮演处理
-		&PicAction{},       //图片处理
-		&MessageAction{},   //消息处理
+		&ProcessedUnique{},  //避免重复处理
+		&ProcessMention{},   //判断机器人是否应该被调用
+		&LifeStreamAction{}, //生活流处理
+		&EmptyAction{},      //空消息处理
+		&ClearAction{},      //清除消息处理
+		&HelpAction{},       //帮助处理
+		&RolePlayAction{},   //角色扮演处理
+		&PicAction{},        //图片处理
+		&MessageAction{},    //消息处理
 
 	}
 	chain(data, actions...)

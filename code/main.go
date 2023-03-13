@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
-	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 	"start-feishubot/handlers"
 	"start-feishubot/initialization"
 	"start-feishubot/services"
+
+	larkim "github.com/larksuite/oapi-sdk-go/v3/service/im/v1"
 
 	larkcard "github.com/larksuite/oapi-sdk-go/v3/card"
 
@@ -53,7 +54,7 @@ func main() {
 		sdkginext.NewCardActionHandlerFunc(
 			cardHandler))
 
-	services.TryDiscord()
+	services.TryDiscord(config.DiscordBotToken)
 	fmt.Println("http server started",
 		"http://localhost:9000/webhook/event")
 	r.Run(":9000")
