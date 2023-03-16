@@ -100,9 +100,9 @@ func TrySDT2I(prompt string) (string, error) {
 	r := &SDImageGenerationResponseBody{}
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
-		SetBody({}).
+		SetBody(reqBody).
 		SetResult(r).
-		Post(reqBody)
+		Post(SDT2IBASEURL)
 	if err != nil {
 		return "", err
 	} else {
