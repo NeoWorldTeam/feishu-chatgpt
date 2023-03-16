@@ -92,7 +92,7 @@ func TrySDT2I(prompt string) (string, error) {
 		Width:             768,
 		Height:            768,
 		CfgScale:          8,
-		HrSecondPassSteps: 10,
+		HrSecondPassSteps: 10
 		//16:9
 		// Width:910
 		// Height:512
@@ -133,7 +133,7 @@ func TrySDI2I(bs64, prompt string) (string, error) {
 			return "", errors.New("sd resp: " + resp.String())
 		}
 		fmt.Println("bs64 str", r.Images[0][0:20])
-		return r.Images[0], nil
+		return TrySuperResolution(r.Images[0]), nil
 	}
 
 }
@@ -147,10 +147,10 @@ func TrySuperResolution(image string) (string, error) {
 	reqBody := SDI2ISuperResolutionRequestBody{
 		ResizeMode:                0,
 		UpscalingResize:           2,
-		Upscaler1:                 "Real-ESRGAN",
-		Upscaler2:                 "Real-ESRGAN+",
-		ExtrasUpscaler2Visibility: 1,
-		Image:                     image,
+		Upscaler1:                 "4x_fatal_Anime_500000_G",
+		Upscaler2:                 "R-ESRGAN 4x+ Anime6B",
+		ExtrasUpscaler2Visibility: 0.7,
+		Image:                     image
 	}
 
 	// 发送POST请求，并获取响应结果
