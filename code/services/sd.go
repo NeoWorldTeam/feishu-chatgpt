@@ -33,18 +33,18 @@ type SDI2ISuperResolutionResponseBody struct {
 }
 
 type SDT2ImageGenerationRequestBody struct {
-	Prompt         string `json:"prompt"`
-	Steps          int    `json:"steps"`
-	NegativePrompt string `json:"negative_prompt"`
-	SamplerIndex   string `json:"sampler_index"`
-	EnableHR                      bool                   `json:"enable_hr"`
-    DenoisingStrength             int                    `json:"denoising_strength"`
-	HrScale                       int                    `json:"hr_scale"`
-    HrUpscaler                    string                 `json:"hr_upscaler"`
-	Width                         int                    `json:"width"`
-    Height                        int                    `json:"height"`
-	CfgScale                      int                    `json:"cfg_scale"`
-	HrSecondPassSteps             int                    `json:"hr_second_pass_steps"`
+	Prompt            string  `json:"prompt"`
+	Steps             int     `json:"steps"`
+	NegativePrompt    string  `json:"negative_prompt"`
+	SamplerIndex      string  `json:"sampler_index"`
+	EnableHR          bool    `json:"enable_hr"`
+	DenoisingStrength float32 `json:"denoising_strength"`
+	HrScale           int     `json:"hr_scale"`
+	HrUpscaler        string  `json:"hr_upscaler"`
+	Width             int     `json:"width"`
+	Height            int     `json:"height"`
+	CfgScale          int     `json:"cfg_scale"`
+	HrSecondPassSteps int     `json:"hr_second_pass_steps"`
 }
 
 type SDI2ImageGenerationRequestBody struct {
@@ -55,7 +55,7 @@ type SDI2ImageGenerationRequestBody struct {
 	SamplerIndex   string   `json:"sampler_index"`
 }
 
-//超分
+// 超分
 type SDI2ISuperResolutionRequestBody struct {
 	ResizeMode                int    `json:"resize_mode"`
 	UpscalingResize           int    `json:"upscaling_resize"`
@@ -81,21 +81,21 @@ func TrySDT2I(prompt string) (string, error) {
 	// POST JSON string
 	// No need to set content type, if you have client level setting
 	reqBody := SDT2ImageGenerationRequestBody{
-		Prompt: prompt + "masterpiece, best quality, ultra-detailed",
-		NegativePrompt: "EasyNegative", 
-		SamplerIndex: "DPM++ 2M Karras", 
-		Steps: 40,
-		EnableHR:true,             
-    	DenoisingStrength:0.6         
-		HrScale:2        
-    	HrUpscaler:"4x_fatal_Anime_500000_G"
-		Width:768  
-    	Height:768  
-		CfgScale:8
-		HrSecondPassSteps:10
+		Prompt:            prompt + "masterpiece, best quality, ultra-detailed",
+		NegativePrompt:    "EasyNegative",
+		SamplerIndex:      "DPM++ 2M Karras",
+		Steps:             40,
+		EnableHR:          true,
+		DenoisingStrength: 0.6,
+		HrScale:           2,
+		HrUpscaler:        "4x_fatal_Anime_500000_G",
+		Width:             768,
+		Height:            768,
+		CfgScale:          8,
+		HrSecondPassSteps: 10,
 		//16:9
-		// Width:910  
-    	// Height:512  
+		// Width:910
+		// Height:512
 	}
 	r := &SDImageGenerationResponseBody{}
 	resp, err := client.R().
@@ -141,7 +141,7 @@ func TrySDI2I(bs64, prompt string) (string, error) {
 func TrySuperResolution(image string) (string, error) {
 	// 创建一个Resty客户端
 	client := resty.New()
-	imgs := []string{bs64}
+	// imgs := []string{image}
 	r := &SDI2ISuperResolutionResponseBody{}
 	// 定义超分接口请求的参数
 	reqBody := SDI2ISuperResolutionRequestBody{
@@ -150,9 +150,9 @@ func TrySuperResolution(image string) (string, error) {
 		Upscaler1:                 "Real-ESRGAN",
 		Upscaler2:                 "Real-ESRGAN+",
 		ExtrasUpscaler2Visibility: 1,
-		Image:                     imgs,
+		Image:                     image,
 	}
-	
+
 	// 发送POST请求，并获取响应结果
 	resp, err := client.R().
 		SetHeader("Content-Type", "application/json").
@@ -170,7 +170,6 @@ func TrySuperResolution(image string) (string, error) {
 		return r.Image, nil
 	}
 }
-
 
 func TryCLIPINFO(bs64 string) (string, error) {
 	// Create a Resty Client
