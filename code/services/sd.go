@@ -133,12 +133,12 @@ func TrySDI2I(bs64, prompt string) (string, error) {
 			return "", errors.New("sd resp: " + resp.String())
 		}
 		fmt.Println("bs64 str", r.Images[0][0:20])
-		return TrySuperResolution(r.Images[0]), nil
+		return TrySuperResolution(r.Images[0],1.1), nil
 	}
 
 }
 
-func TrySuperResolution(image string) (string, error) {
+func TrySuperResolution(image string,scale float32) (string, error) {
 	// 创建一个Resty客户端
 	client := resty.New()
 	// imgs := []string{image}
@@ -146,7 +146,7 @@ func TrySuperResolution(image string) (string, error) {
 	// 定义超分接口请求的参数
 	reqBody := SDI2ISuperResolutionRequestBody{
 		ResizeMode:                0,
-		UpscalingResize:           2,
+		UpscalingResize:           scale,
 		Upscaler1:                 "4x_fatal_Anime_500000_G",
 		Upscaler2:                 "R-ESRGAN 4x+ Anime6B",
 		ExtrasUpscaler2Visibility: 0.7,
