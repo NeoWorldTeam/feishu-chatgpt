@@ -8,11 +8,15 @@ import (
 )
 
 const (
-	SDT2IBASEURL  = "http://192.168.50.107:7860/sdapi/v1/txt2img"
-	SDI2IBASEURL  = "http://192.168.50.107:7860/sdapi/v1/img2img"
-	SDCLIPBASEURL = "http://192.168.50.107:7860/sdapi/v1/interrogate"
-	sdengine      = "sd"
+	SDBASEURL = "http://192.168.50.168:7861/sdapi/v1/%s"
+	// SDBASEURL = "http://192.168.50.107:7860/sdapi/v1/%s"
+
+	sdengine = "sd"
 )
+
+var SDT2IBASEURL = fmt.Sprintf(SDBASEURL, "txt2img")
+var SDI2IBASEURL = fmt.Sprintf(SDBASEURL, "img2img")
+var SDCLIPBASEURL = fmt.Sprintf(SDBASEURL, "interrogate")
 
 type SDImageGenerationResponseBody struct {
 	Images     []string `json:"images"`
@@ -71,7 +75,6 @@ func TrySDT2I(prompt string) (string, error) {
 
 func TrySDI2I(bs64, prompt string) (string, error) {
 	// Create a Resty Client
-	fmt.Println("send sd promt:", prompt)
 	client := resty.New()
 	imgs := []string{bs64}
 	// POST JSON string

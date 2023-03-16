@@ -54,7 +54,7 @@ func main() {
 		sdkginext.NewCardActionHandlerFunc(
 			cardHandler))
 
-	services.TryDiscord(config.DiscordBotToken)
+	services.TryDiscord(config.DiscordBotToken, config.OpenaiApiKey)
 	fmt.Println("http server started",
 		"http://localhost:9000/webhook/event")
 	r.Run(":9000")

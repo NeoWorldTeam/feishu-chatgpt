@@ -215,6 +215,30 @@ func withDoubleCheckBtn(sessionID *string) larkcard.MessageCardElement {
 	return actions
 }
 
+func withLifeStreamingBtn(sessionID *string) larkcard.MessageCardElement {
+	confirmBtn := withBtn("继续任务", map[string]interface{}{
+		"value":     "1",
+		"kind":      ClearCardKind,
+		"chatType":  UserChatType,
+		"sessionId": *sessionID,
+	}, larkcard.MessageCardButtonTypeDanger,
+	)
+	cancelBtn := withBtn("中止任务", map[string]interface{}{
+		"value":     "0",
+		"kind":      ClearCardKind,
+		"sessionId": *sessionID,
+		"chatType":  UserChatType,
+	},
+		larkcard.MessageCardButtonTypeDefault)
+
+	actions := larkcard.NewMessageCardAction().
+		Actions([]larkcard.MessageCardActionElement{confirmBtn, cancelBtn}).
+		Layout(larkcard.MessageCardActionLayoutBisected.Ptr()).
+		Build()
+
+	return actions
+}
+
 func withImageDiv(imageKey string) larkcard.MessageCardElement {
 	imageElement := larkcard.NewMessageCardImage().
 		ImgKey(imageKey).
@@ -476,6 +500,7 @@ func sendLifeStreamCard(ctx context.Context, msg string,
 		withHeader("一千零一夜", larkcard.TemplateBlue),
 		withImageDiv(*imageKey),
 		withMainMd(msg),
+		withLifeStreamingBtn(msgId),
 		// withNote("有酒乐逍遥，无酒我亦颠")
 	)
 	replyCard(
